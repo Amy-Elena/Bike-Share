@@ -1,0 +1,311 @@
+---
+title: "Cyclistic bike-share analysis case study"
+
+author: "Amara Igboanugo"
+date: "20th June 2022"
+output: github_document
+---
+
+ 
+```{r setup, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Introduction
+
+**Cyclistic** is a fictional **bike-sharing company** that features more than 5,800 bicycles and 600 docking stations.  
+
+The **business task** is to understand better how **annual members** at Cyclistic differ from **casual members** of Cyclistic, in order to design marketing strategies aimed at converting casual riders into annual members.
+
+#### Data source
+
+Data source is public data made available by Motivate International Inc, with a license to use Lyft Bikes and Scooters, LLC (“Bikeshare”) Divvy bicycle sharing data.  
+
+The datasets provide data that can be used to explore how different customer types are using Cyclistic bikes. 12 datasets were used, each being a monthly collection of data gathered from activities of Cyclistic riders.
+
+
+##### Load packages
+
+```{r working-directory}
+getwd()
+```
+
+```{r `tidyverse`}
+library(tidyverse)
+```
+
+
+#### Import csv files
+
+```{r `read_csv`}
+april_2021 <- read_csv("Case study CSV/202104-divvy-tripdata.csv")
+may_2021 <- read_csv("Case study CSV/202105-divvy-tripdata.csv")
+june_2021 <- read_csv("Case study CSV/202106-divvy-tripdata.csv")
+july_2021 <- read_csv("Case study CSV/202107-divvy-tripdata.csv")
+aug_2021 <- read_csv("Case study CSV/202108-divvy-tripdata.csv")
+sept_2021 <- read_csv("Case study CSV/202109-divvy-tripdata.csv")
+oct_2021 <- read_csv("Case study CSV/202110-divvy-tripdata.csv")
+nov_2021 <- read_csv("Case study CSV/202111-divvy-tripdata.csv")
+dec_2021 <- read_csv("Case study CSV/202112-divvy-tripdata.csv")
+jan_2022 <- read_csv("Case study CSV/202201-divvy-tripdata.csv")
+feb_2022 <- read_csv("Case study CSV/202202-divvy-tripdata.csv")
+march_2022 <- read_csv("Case study CSV/202203-divvy-tripdata.csv")
+```
+
+
+#### Data frame summaries
+
+
+```{r `head`}
+head(april_2021)
+head(may_2021)
+head(june_2021)
+head(july_2021)
+head(aug_2021)
+head(sept_2021)
+head(oct_2021)
+head(nov_2021)
+head(dec_2021)
+head(jan_2022)
+head(feb_2022)
+head(march_2022)
+```
+
+#### Compare column names
+
+```{r `colnames`}
+colnames(april_2021)
+colnames(may_2021)
+colnames(june_2021)
+colnames(july_2021)
+colnames(aug_2021)
+colnames(sept_2021)
+colnames(oct_2021)
+colnames(nov_2021)
+colnames(dec_2021)
+colnames(jan_2022)
+colnames(feb_2022)
+colnames(march_2022)
+```
+
+#### View structure
+
+```{r `View`}
+str(april_2021)
+str(may_2021)
+str(june_2021)
+str(july_2021)
+str(aug_2021)
+str(sept_2021)
+str(oct_2021)
+str(nov_2021)
+str(dec_2021)
+str(jan_2022)
+str(feb_2022)
+str(march_2022)
+```
+
+
+#### Merge data frames (datasets) 
+
+* vertically, using the `rbind` function
+
+```{r `rbind`}
+one_year_trips <- rbind(april_2021,may_2021,june_2021,july_2021,aug_2021,
+                           sept_2021,oct_2021,nov_2021,dec_2021,jan_2022,feb_2022,march_2022)
+```
+
+* View combined dataset
+
+```{r}
+View(one_year_trips)
+str(one_year_trips)
+```
+
+
+#### Check for nulls
+
+```{r}
+sum(is.na(one_year_trips))
+```
+
+* New dataframe without nulls
+
+```{r `na.omit`}
+cleaned_tripsdata <- na.omit(one_year_trips)
+```
+
+* View new dataframe
+
+```{r}
+View(cleaned_tripsdata)
+```
+
+##### Calculate trip duration
+
+* Start time and end time for rides in minutes to give ride length.
+
+```{r}
+trips_data <- mutate(cleaned_tripsdata,ride_length = difftime(ended_at, started_at, 
+                                                              units = "mins"))
+```
+
+
+#### Date manipulations
+
+```{r `lubridate`}
+library(lubridate)
+```
+
+
+* Add columns that list the date, month, day, and year of each ride.
+* This will allow us to aggregate ride data for each month, day, or year. 
+* The default format is yyyy-mm-dd.
+
+```{r}
+trips_data$date <- as.Date(trips_data$started_at) 
+trips_data$month <- format(as.Date(trips_data$date), "%m")
+trips_data$day <- format(as.Date(trips_data$date), "%d")
+trips_data$year <- format(as.Date(trips_data$date), "%Y")
+
+trips_data <- mutate(trips_data,day_of_week = wday(trips_data$started_at, label=TRUE))
+```
+
+#### Rearrange columns
+
+```{r `dplyr`}
+require(dplyr)
+```
+
+```{r}
+trips_data <- trips_data %>% relocate(ride_length, .before = start_station_name)
+trips_data <- trips_data %>% relocate(day_of_week, .before = ended_at)
+trips_data <- trips_data %>% relocate(member_casual, .before = rideable_type)
+trips_data <- trips_data %>% relocate(date,month,day,year, .before = start_station_name)
+```
+
+#### Inspect the structure of the dataframe
+
+```{r `str`}
+str(trips_data)
+```
+
+
+### Descriptive analysis on data
+
+* Observations: Members vs Casual users
+
+```{r `table`}
+table(trips_data$member_casual)
+```
+
+* Mean,median,max and min of ride length
+
+```{r}
+trips_data %>% summarise (mean(ride_length))
+trips_data %>% summarise (max(ride_length))
+median(trips_data$ride_length)
+min(trips_data$ride_length)
+```
+
+* Summary mean,max,median and min
+
+```{r}
+summary(trips_data$ride_length)
+```
+
+#### Statistics Member vs Casual
+
+```{r}
+trips_data %>% group_by(member_casual) %>% 
+  summarise (mean(ride_length))
+trips_data %>% group_by(member_casual) %>% 
+  summarise (max(ride_length))
+
+aggregate(trips_data$ride_length ~ trips_data$member_casual, FUN = median)
+aggregate(trips_data$ride_length ~ trips_data$member_casual, FUN = min)
+```
+
+
+* Average ride time by each day for members vs casual users
+
+```{r}
+aggregate(trips_data$ride_length ~ trips_data$member_casual + trips_data$day_of_week, FUN = mean)
+```
+
+
+#### Analysis: Ridership data by type and weekday
+
+```{r}
+trips_data %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>%  
+  group_by(member_casual, weekday) %>%  
+  summarise(number_of_rides = n()							 
+            ,average_duration = mean(ride_length)) %>% 		
+  arrange(member_casual, weekday)	
+```
+
+
+### Visualization
+
+* load packages
+
+```{r}
+library(ggplot2)
+```
+
+
+#### Number of rides by rider type
+
+```{r}
+trips_data %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+
+
+#### Average duration of rides
+* Member vs Casual
+
+```{r}
+trips_data %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+
+
+#### Summary dataframe
+
+```{r}
+summary_trips <- aggregate(trips_data$ride_length ~ trips_data$member_casual + 
+                     trips_data$day_of_week, FUN = mean)
+
+summary_trips2 <- aggregate(trips_data$ride_length ~ trips_data$member_casual + 
+                             trips_data$month, FUN = mean)
+
+summary_trips3 <- aggregate(trips_data$ride_length ~ trips_data$member_casual + 
+                              trips_data$rideable_type, FUN = mean)
+```
+
+#### Export summary for further analysis
+
+```{r `write.csv`}
+write.csv(summary_trips, file = 'C:/Users/Amara/Documents/avg_ride_length.csv')
+
+write.csv(summary_trips2, file = 'C:/Users/Amara/Documents/avg_ride_length.csv')
+
+write.csv(summary_trips3, file = 'C:/Users/Amara/Documents/avg_ride_length.csv')
+
+
+write.csv(trips_data, file = 'C:/Users/Amara/Documents/trips_data.csv')
+```
